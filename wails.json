@@ -1,11 +1,18 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "uploader",
-  "outputfilename": "uploader",
+  "name": "Sermon Uploader",
+  "outputfilename": "SermonUploader",
   "frontend:install": "npm install",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
+  "info": {
+    "companyName": "",
+    "productName": "Sermon Uploader",
+    "productVersion": "1.0.0",
+    "copyright": "",
+    "comments": "Automates sermon uploads to YouTube, Facebook, and Spotify."
+  },
   "author": {
     "name": "",
     "email": ""
