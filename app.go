@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
@@ -140,7 +141,7 @@ func (a *App) StartUpload(videoPath string, meta SermonMeta) UploadResult {
 
 	// --- Step 1: ffmpeg normalization ---
 	emit("normalize", "Starting audio normalization…")
-	normalizedPath, err := ffmpeg.Normalize(videoPath, cfg.OutputDir, emit)
+	normalizedPath, err := ffmpeg.Normalize(videoPath, filepath.Dir(videoPath), emit)
 	if err != nil {
 		emit("normalize", "ERROR: "+err.Error())
 		return UploadResult{OK: false, Message: "Normalization failed: " + err.Error()}

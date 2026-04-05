@@ -85,10 +85,48 @@ func getOrCreatePage(ctx playwright.BrowserContext) (playwright.Page, error) {
 	return ctx.NewPage()
 }
 
+// maxUploadAttempts is the number of times the Spotify upload will be retried
+// on transient browser errors before giving up.
+const maxUploadAttempts = 3
+
 // Upload logs into Spotify for Creators and creates a new episode with the
 // given media file (video or audio). The browser window is shown (headless=false)
 // so the user can handle 2FA / CAPTCHA interactively on first run.
+// Transient browser errors (e.g. "target closed") are retried automatically.
 func Upload(ctx context.Context, mediaPath string, creds Credentials, meta SermonMetadata, progress ProgressFunc) error {
+	var lastErr error
+	for attempt := 1; attempt <= maxUploadAttempts; attempt++ {
+		if attempt > 1 {
+			progress("spotify", fmt.Sprintf("Retrying (attempt %d/%d) after error: %v", attempt, maxUploadAttempts, lastErr))
+			time.Sleep(time.Duration(attempt-1) * 3 * time.Second)
+		}
+		err := uploadOnce(ctx, mediaPath, creds, meta, progress)
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+		if !isTransientSpotifyError(err) {
+			return err
+		}
+		progress("spotify", fmt.Sprintf("Transient error on attempt %d/%d, will retry…", attempt, maxUploadAttempts))
+	}
+	return lastErr
+}
+
+// isTransientSpotifyError reports whether err looks like a recoverable
+// browser/network error that is worth retrying.
+func isTransientSpotifyError(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := err.Error()
+	return strings.Contains(s, "target closed") ||
+		strings.Contains(s, "context or browser has been closed") ||
+		strings.Contains(s, "connection refused")
+}
+
+// uploadOnce performs a single attempt of the Spotify upload flow.
+func uploadOnce(ctx context.Context, mediaPath string, creds Credentials, meta SermonMetadata, progress ProgressFunc) error {
 	progress("spotify", "Launching browser for Spotify…")
 
 	pw, err := playwright.Run()
