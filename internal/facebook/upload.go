@@ -123,11 +123,13 @@ func Upload(ctx context.Context, videoPath, pageID, accessToken string, meta Ser
 func startUpload(ctx context.Context, pageID, accessToken string, fileSize int64, title, creativeFolderID string) (*startResponse, error) {
 	endpoint := fmt.Sprintf("%s/%s/videos", graphBase, pageID)
 	params := url.Values{
-		"upload_phase":       {"start"},
-		"file_size":          {strconv.FormatInt(fileSize, 10)},
-		"title":              {title},
-		"access_token":       {accessToken},
-		"creative_folder_id": {creativeFolderID},
+		"upload_phase": {"start"},
+		"file_size":    {strconv.FormatInt(fileSize, 10)},
+		"title":        {title},
+		"access_token": {accessToken},
+	}
+	if creativeFolderID != "" {
+		params.Set("creative_folder_id", creativeFolderID)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(params.Encode()))
@@ -238,6 +240,10 @@ func getOrCreateCreativeFolder(ctx context.Context, pageID, accessToken string) 
 	}
 	body, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
+	// If the endpoint is not supported for this page type, proceed without a folder.
+	if resp.StatusCode == http.StatusBadRequest && strings.Contains(string(body), "Unknown path components") {
+		return "", nil
+	}
 	if resp.StatusCode == http.StatusOK {
 		var listed struct {
 			Data []struct {
@@ -265,6 +271,10 @@ func getOrCreateCreativeFolder(ctx context.Context, pageID, accessToken string) 
 	}
 	body2, _ := io.ReadAll(resp2.Body)
 	resp2.Body.Close()
+	// If creating is also unsupported, proceed without a folder.
+	if resp2.StatusCode == http.StatusBadRequest && strings.Contains(string(body2), "Unknown path components") {
+		return "", nil
+	}
 	if resp2.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("HTTP %d: %s", resp2.StatusCode, body2)
 	}
